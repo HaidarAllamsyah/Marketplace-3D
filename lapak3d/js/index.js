@@ -187,5 +187,12 @@ $(document).ready(function() {
         if (e.key === 'lapak3d_bids') {
             applyFilters(); // Re-render katalog dengan data bid terbaru
         }
+
+        if (e.key === 'lapak3d_products') {
+            loadProductsFromJSON(function(products) {
+                allProducts = products;
+                applyFilters();
+            });
+        }
     });
 });

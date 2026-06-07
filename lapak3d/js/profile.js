@@ -121,38 +121,160 @@ $(document).ready(function() {
         $container.empty();
 
         if (user.isCreator) {
-            $container.html(`
-                <div class="p-4 rounded-4 text-center border-primary bg-primary bg-opacity-10 mb-4 shadow-sm" style="border: 1px solid var(--primary);">
-                    <i class="fa-solid fa-circle-check text-success fs-1 mb-2"></i>
-                    <h4 class="fw-bold text-white mb-1">Verified Creator</h4>
-                    <p class="text-primary-light mb-0">Akun Anda telah disetujui sebagai kreator Lapak 3D. Teruslah berkarya!</p>
-                </div>
-                
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <div class="p-4 rounded-4 text-center shadow-sm" style="background-color: var(--bg-card); border: 1px solid var(--border);">
-                            <div class="text-muted fs-7 mb-1 fw-semibold">Aset Diupload</div>
-                            <h2 class="fw-bolder text-white mb-0">12</h2>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="p-4 rounded-4 text-center shadow-sm" style="background-color: var(--bg-card); border: 1px solid var(--border);">
-                            <div class="text-muted fs-7 mb-1 fw-semibold">Total Penjualan</div>
-                            <h2 class="fw-bolder text-white mb-0">845</h2>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="p-4 rounded-4 text-center shadow-sm" style="background-color: var(--bg-card); border: 1px solid var(--border);">
-                            <div class="text-muted fs-7 mb-1 fw-semibold">Saldo Pendapatan</div>
-                            <h2 class="fw-bolder text-success mb-0">Rp 4.5M</h2>
-                        </div>
-                    </div>
-                </div>
+            $container.html(`<div class="text-center py-5"><i class="fa-solid fa-spinner fa-spin fs-2 text-primary"></i><p class="text-muted mt-2">Memuat status kreator...</p></div>`);
 
-                <div class="text-center mt-5">
-                    <a href="upload-asset.html" class="btn btn-primary-custom px-5 py-3 rounded-pill fw-bold fs-5 hover-lift shadow"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Upload Aset Baru</a>
-                </div>
-            `);
+            window.loadProductsFromJSON(function(products) {
+                const myProducts = products.filter(p => p.creator === user.username);
+                const assetCount = myProducts.length;
+
+                let totalItemsSold = 0;
+                let totalRevenue = 0;
+                const COMMISSION_RATE = 0.85;
+                const globalSales = JSON.parse(localStorage.getItem('lapak3d_global_sales')) || {};
+
+                myProducts.forEach(product => {
+                    if (globalSales[product.id]) {
+                        totalItemsSold += globalSales[product.id].buyers.length;
+                        totalRevenue += globalSales[product.id].totalAmount;
+                    }
+                });
+
+                const creatorRevenue = Math.round(totalRevenue * COMMISSION_RATE);
+                const platformFee = totalRevenue - creatorRevenue;
+
+                $container.html(`
+                    <div class="p-4 rounded-4 text-center border-primary bg-primary bg-opacity-10 mb-4 shadow-sm" style="border: 1px solid var(--primary);">
+                        <i class="fa-solid fa-circle-check text-success fs-1 mb-2"></i>
+                        <h4 class="fw-bold text-white mb-1">Verified Creator</h4>
+                        <p class="text-primary-light mb-0">Akun Anda telah disetujui sebagai kreator Lapak 3D. Teruslah berkarya!</p>
+                    </div>
+                    
+                    <div class="row g-3 mb-5">
+                        <div class="col-md-4">
+                            <div class="p-4 rounded-4 text-center shadow-sm" style="background-color: var(--bg-card); border: 1px solid var(--border);">
+                                <div class="text-muted fs-7 mb-1 fw-semibold">Aset Diupload</div>
+                                <h2 class="fw-bolder text-white mb-0">${assetCount}</h2>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-4 rounded-4 text-center shadow-sm" style="background-color: var(--bg-card); border: 1px solid var(--border);">
+                                <div class="text-muted fs-7 mb-1 fw-semibold">Total Penjualan</div>
+                                <h2 class="fw-bolder text-white mb-0">${totalItemsSold}</h2>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-4 rounded-4 text-center shadow-sm" style="background-color: var(--bg-card); border: 1px solid var(--border);">
+                                <div class="text-muted fs-7 mb-1 fw-semibold">Saldo Pendapatan</div>
+                                <h2 class="fw-bolder text-success mb-0">${window.formatRupiah(totalRevenue)}</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-4 text-center shadow-sm mb-5" style="background-color: var(--bg-card); border: 1px solid var(--border);">
+                        <div class="text-muted fs-7 mb-2 fw-semibold">Komisi Kreator (85%)</div>
+                        <div class="fs-2 fw-bolder text-success mb-1">${window.formatRupiah(creatorRevenue)}</div>
+                        <div class="text-muted fs-7">Pendapatan bersih setelah biaya platform ${window.formatRupiah(platformFee)}</div>
+                    </div>
+
+                    <!-- Kelola Aset Section -->
+                    <div class="mb-5">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="fw-bold text-white m-0"><i class="fa-solid fa-folder-open text-primary-light me-2"></i> Kelola Aset Anda</h4>
+                            <a href="upload-asset.html" class="btn btn-primary-custom px-4 py-2 rounded-pill fw-bold hover-lift shadow"><i class="fa-solid fa-plus me-1"></i> Upload Aset Baru</a>
+                        </div>
+                        
+                        <div class="table-responsive rounded-4 border border-secondary" style="border-color: rgba(255, 255, 255, 0.1) !important; background-color: var(--bg-card);">
+                            <table class="table table-dark table-hover align-middle mb-0 text-white">
+                                <thead class="table-light text-uppercase fs-7" style="background-color: rgba(255,255,255,0.03);">
+                                    <tr>
+                                        <th class="ps-4 py-3" style="color: var(--text-muted) !important;">Aset</th>
+                                        <th style="color: var(--text-muted) !important;">Kategori</th>
+                                        <th style="color: var(--text-muted) !important;">Tipe</th>
+                                        <th style="color: var(--text-muted) !important;">Harga / Bid</th>
+                                        <th style="color: var(--text-muted) !important;">Pembeli / Pemenang</th>
+                                        <th class="text-center pe-4" style="color: var(--text-muted) !important;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="creator-assets-list">
+                                    <!-- Terisi dinamis -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `);
+
+                const $list = $('#creator-assets-list');
+                if (myProducts.length === 0) {
+                    $list.append(`
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="fa-solid fa-box-open mb-3" style="font-size: 3rem; opacity: 0.4;"></i>
+                                <h5 class="fw-bold text-white">Belum ada aset</h5>
+                                <p class="fs-7">Anda belum mempublikasikan aset apapun ke marketplace.</p>
+                            </td>
+                        </tr>
+                    `);
+                    return;
+                }
+
+                myProducts.forEach(product => {
+                    let typeBadge = '';
+                    let priceText = '';
+                    let buyerText = '<span class="text-muted fs-7">-</span>';
+
+                    if (product.type === 'free') {
+                        typeBadge = '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fs-7">Free</span>';
+                        priceText = 'Gratis';
+                    } else if (product.type === 'paid') {
+                        typeBadge = '<span class="badge bg-primary bg-opacity-10 text-primary-light border border-primary border-opacity-25 fs-7">Premium</span>';
+                        priceText = window.formatRupiah(product.price);
+                        
+                        if (globalSales[product.id] && globalSales[product.id].buyers.length > 0) {
+                            const uniqueBuyers = [...new Set(globalSales[product.id].buyers.map(b => b.username))];
+                            buyerText = uniqueBuyers.map(u => `<span class="badge bg-secondary mb-1">${u}</span>`).join(' ');
+                        }
+                    } else if (product.type === 'auction') {
+                        typeBadge = '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 fs-7">Lelang</span>';
+                        const bids = window.getBids();
+                        const bidData = bids[product.id] || { currentBid: product.currentBid };
+                        priceText = window.formatRupiah(bidData.currentBid);
+                        
+                        if (bidData && bidData.history && bidData.history.length > 0) {
+                            const time = window.getTimeRemaining(product.auctionEndTime);
+                            if (time.expired) {
+                                const winner = bidData.history[bidData.history.length - 1].user;
+                                buyerText = `<span class="badge bg-warning text-dark"><i class="fa-solid fa-crown me-1"></i>${winner}</span>`;
+                            } else {
+                                buyerText = '<span class="text-muted fs-7 fst-italic">Lelang Berjalan</span>';
+                            }
+                        }
+                    }
+                    
+                    $list.append(`
+                        <tr>
+                            <td class="ps-4 py-3">
+                                <div class="d-flex align-items-center">
+                                    <img src="${product.thumbnail || 'assets/thumbnails/placeholder.jpg'}" onerror="this.src='assets/thumbnails/placeholder.jpg'" class="rounded me-3 border border-secondary border-opacity-25" style="width: 55px; height: 55px; object-fit: cover;">
+                                    <div>
+                                        <div class="fw-bold text-white">${product.name}</div>
+                                        <div class="text-muted fs-7 font-monospace">ID: ${product.id}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${product.category}</td>
+                            <td>${typeBadge}</td>
+                            <td class="fw-semibold">${priceText}</td>
+                            <td>${buyerText}</td>
+                            <td class="text-center pe-4">
+                                <div class="d-flex justify-content-center gap-2">
+                                    <a href="detail.html?id=${product.id}" class="btn btn-sm btn-outline-info rounded-pill px-3 py-1 fw-bold"><i class="fa-solid fa-eye me-1"></i> Detail</a>
+                                    <button onclick="window.deleteProduct(${product.id})" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 fw-bold"><i class="fa-solid fa-trash me-1"></i> Hapus</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `);
+                });
+            });
         } else {
             $container.html(`
                 <div class="row align-items-center p-4 p-md-5 rounded-4 shadow-sm" style="background-color: var(--bg-card); border: 1px solid var(--border);">
@@ -220,7 +342,70 @@ $(document).ready(function() {
         window.showToast("Fitur edit profil akan segera hadir di versi Lapak 3D selanjutnya!");
     });
 
-    // 8. Execute on ready
+    // 8. Delete Product API Call
+    window.deleteProduct = async function(productId) {
+        if (!confirm("Apakah Anda yakin ingin menghapus aset ini dari marketplace? Untuk upload Live Server, file 3D model dan thumbnail akan dihapus dari storage browser.")) {
+            return;
+        }
+
+        const localProds = JSON.parse(localStorage.getItem('lapak3d_products')) || [];
+        const localProduct = localProds.find(p => p.id === parseInt(productId));
+
+        if (localProduct) {
+            await window.deleteLocalUploadedProduct(productId);
+            window.removeFromCart(productId);
+
+            let bids = window.getBids();
+            if (bids[productId]) {
+                delete bids[productId];
+                window.saveBids(bids);
+            }
+
+            window.showToast("Aset upload lokal berhasil dihapus dari browser.");
+            renderCreatorStatus();
+            return;
+        }
+
+        $.ajax({
+            url: '/api/delete-product',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                id: productId,
+                creator: user.username
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Sync local carts
+                    window.removeFromCart(productId);
+
+                    // Sync local bids
+                    let bids = window.getBids();
+                    if (bids[productId]) {
+                        delete bids[productId];
+                        window.saveBids(bids);
+                    }
+
+                    // Sync local products cache
+                    let localProds = JSON.parse(localStorage.getItem('lapak3d_products')) || [];
+                    localProds = localProds.filter(p => p.id !== productId);
+                    localStorage.setItem('lapak3d_products', JSON.stringify(localProds));
+
+                    window.showToast("Aset berhasil dihapus secara permanen beserta file fisiknya! 🗑️");
+                    
+                    // Refresh listing
+                    renderCreatorStatus();
+                } else {
+                    window.showToast("Gagal menghapus aset: " + response.error, true);
+                }
+            },
+            error: function(xhr, status, error) {
+                window.showToast("Terjadi kesalahan koneksi ke server saat menghapus aset.", true);
+            }
+        });
+    };
+
+    // 9. Execute on ready
     loadUserData();
     loadStats();
     renderOrderHistory();

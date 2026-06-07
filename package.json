@@ -1,0 +1,29 @@
+{
+  "name": "lapak3d-backend",
+  "version": "1.0.0",
+  "description": "Lapak 3D Backend Server for Asset Uploads and Management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "multer": "^1.4.5-lts.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HaidarAllamsyah/Marketplace-3D.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/HaidarAllamsyah/Marketplace-3D/issues"
+  },
+  "homepage": "https://github.com/HaidarAllamsyah/Marketplace-3D#readme",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

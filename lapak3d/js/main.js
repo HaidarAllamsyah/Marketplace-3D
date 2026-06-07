@@ -41,12 +41,219 @@ function initLapakSession() {
     }, 30000);
 }
 
+// ===================== UPLOAD STORAGE (LIVE SERVER FRIENDLY) =====================
+const LAPAK3D_DB_NAME = 'lapak3d_upload_db';
+const LAPAK3D_DB_VERSION = 1;
+const LAPAK3D_UPLOAD_STORE = 'uploadedFiles';
+
+function openUploadDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(LAPAK3D_DB_NAME, LAPAK3D_DB_VERSION);
+
+        request.onupgradeneeded = function(event) {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(LAPAK3D_UPLOAD_STORE)) {
+                db.createObjectStore(LAPAK3D_UPLOAD_STORE);
+            }
+        };
+
+        request.onsuccess = function() {
+            resolve(request.result);
+        };
+
+        request.onerror = function() {
+            reject(request.error);
+        };
+    });
+}
+
+async function saveUploadBlob(key, file) {
+    const db = await openUploadDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(LAPAK3D_UPLOAD_STORE, 'readwrite');
+        tx.objectStore(LAPAK3D_UPLOAD_STORE).put(file, key);
+        tx.oncomplete = resolve;
+        tx.onerror = function() {
+            reject(tx.error);
+        };
+    });
+}
+
+async function getUploadBlobUrl(key) {
+    if (!key) return null;
+
+    try {
+        const db = await openUploadDB();
+        const file = await new Promise((resolve, reject) => {
+            const tx = db.transaction(LAPAK3D_UPLOAD_STORE, 'readonly');
+            const request = tx.objectStore(LAPAK3D_UPLOAD_STORE).get(key);
+            request.onsuccess = function() {
+                resolve(request.result || null);
+            };
+            request.onerror = function() {
+                reject(request.error);
+            };
+        });
+
+        return file ? URL.createObjectURL(file) : null;
+    } catch (err) {
+        console.error('[Lapak3D] Gagal membaca file upload dari IndexedDB:', err);
+        return null;
+    }
+}
+
+async function deleteUploadBlob(key) {
+    if (!key) return;
+
+    try {
+        const db = await openUploadDB();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(LAPAK3D_UPLOAD_STORE, 'readwrite');
+            tx.objectStore(LAPAK3D_UPLOAD_STORE).delete(key);
+            tx.oncomplete = resolve;
+            tx.onerror = function() {
+                reject(tx.error);
+            };
+        });
+    } catch (err) {
+        console.error('[Lapak3D] Gagal menghapus file upload dari IndexedDB:', err);
+    }
+}
+
+async function clearUploadDB() {
+    try {
+        const db = await openUploadDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(LAPAK3D_UPLOAD_STORE, 'readwrite');
+            const store = tx.objectStore(LAPAK3D_UPLOAD_STORE);
+            const request = store.clear();
+            request.onsuccess = resolve;
+            request.onerror = function() {
+                reject(request.error);
+            };
+        });
+    } catch (err) {
+        console.error('[Lapak3D] Gagal membersihkan IndexedDB upload:', err);
+    }
+}
+
+async function clearClientStateForServerReset(resetId) {
+    sessionStorage.clear();
+
+    const keysToClear = [
+        'lapak3d_user',
+        'lapak3d_user_db',
+        'lapak3d_cart',
+        'lapak3d_orders',
+        'lapak3d_global_sales',
+        'lapak3d_bids',
+        'lapak3d_products',
+        'lapak3d_pending_order',
+        'lapak3d_global_auction_time',
+        'lapak3d_heartbeat'
+    ];
+
+    keysToClear.forEach(key => localStorage.removeItem(key));
+    if (resetId) {
+        localStorage.setItem('lapak3d_last_reset_id', resetId);
+    }
+
+    await clearUploadDB();
+}
+
+async function checkServerReset() {
+    try {
+        const response = await fetch('reset.json', { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        const currentResetId = data.resetId;
+        const previousResetId = localStorage.getItem('lapak3d_last_reset_id');
+
+        if (previousResetId !== currentResetId) {
+            console.info('[Lapak3D] Detected new server reset state. Clearing browser storage.');
+            await clearClientStateForServerReset(currentResetId);
+        }
+    } catch (err) {
+        console.warn('[Lapak3D] Gagal memeriksa reset server:', err);
+    }
+}
+
+async function resolveUploadedProductFiles(product) {
+    const resolved = { ...product };
+
+    // Kompatibilitas dengan data upload simulasi versi lama yang memakai modelUrl.
+    if (!resolved.model && resolved.modelUrl) {
+        resolved.model = resolved.modelUrl;
+    }
+
+    if (resolved.modelKey) {
+        const modelUrl = await getUploadBlobUrl(resolved.modelKey);
+        if (modelUrl) resolved.model = modelUrl;
+    }
+
+    if (resolved.thumbnailKey) {
+        const thumbnailUrl = await getUploadBlobUrl(resolved.thumbnailKey);
+        if (thumbnailUrl) resolved.thumbnail = thumbnailUrl;
+    }
+
+    return resolved;
+}
+
+async function resolveUploadedProducts(products) {
+    return Promise.all(products.map(resolveUploadedProductFiles));
+}
+
+async function saveUploadedAsset(productData, modelFile, thumbnailFile) {
+    const id = Date.now();
+    const safeName = (productData.name || 'asset').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'asset';
+    const modelKey = `uploads/models/${id}-${safeName}-${modelFile.name}`;
+    const thumbnailKey = `uploads/thumbnails/${id}-${safeName}-${thumbnailFile.name}`;
+
+    await Promise.all([
+        saveUploadBlob(modelKey, modelFile),
+        saveUploadBlob(thumbnailKey, thumbnailFile)
+    ]);
+
+    const product = {
+        id,
+        ...productData,
+        model: modelKey,
+        thumbnail: thumbnailKey,
+        modelKey,
+        thumbnailKey,
+        uploadedAt: new Date().toISOString(),
+        storageMode: 'browser-indexeddb'
+    };
+
+    const localProducts = JSON.parse(localStorage.getItem('lapak3d_products')) || [];
+    localProducts.push(product);
+    localStorage.setItem('lapak3d_products', JSON.stringify(localProducts));
+
+    return resolveUploadedProductFiles(product);
+}
+
+async function deleteLocalUploadedProduct(productId) {
+    const id = parseInt(productId);
+    let localProducts = JSON.parse(localStorage.getItem('lapak3d_products')) || [];
+    const product = localProducts.find(p => p.id === id);
+
+    if (product) {
+        await Promise.all([
+            deleteUploadBlob(product.modelKey),
+            deleteUploadBlob(product.thumbnailKey)
+        ]);
+    }
+
+    localProducts = localProducts.filter(p => p.id !== id);
+    localStorage.setItem('lapak3d_products', JSON.stringify(localProducts));
+}
+
 // 1. loadProductsFromJSON(callback)
 function loadProductsFromJSON(callback) {
-    $.getJSON('js/products.json', function(jsonProducts) {
+    $.getJSON('js/products.json', async function(jsonProducts) {
         let localProductsStr = localStorage.getItem("lapak3d_products");
         let localProducts = localProductsStr ? JSON.parse(localProductsStr) : [];
-        
+
         // Setel waktu lelang dinamis di localStorage (dibagi semua tab)
         // Jika sudah ada (dari tab sebelumnya), gunakan yang ada
         let globalAuctionEndTime = localStorage.getItem('lapak3d_global_auction_time');
@@ -69,15 +276,16 @@ function loadProductsFromJSON(callback) {
         
         localProducts.forEach(p => combinedMap.set(p.id, p));
         
-        let combined = Array.from(combinedMap.values());
+        let combined = await resolveUploadedProducts(Array.from(combinedMap.values()));
         
         if (typeof callback === 'function') {
             callback(combined);
         }
-    }).fail(function() {
+    }).fail(async function() {
         console.error("Gagal memuat products.json");
         let localProductsStr = localStorage.getItem("lapak3d_products");
         let localProducts = localProductsStr ? JSON.parse(localProductsStr) : [];
+        localProducts = await resolveUploadedProducts(localProducts);
         if (typeof callback === 'function') {
             callback(localProducts);
         }
@@ -166,17 +374,41 @@ function updateCartBadge() {
     }
 }
 
-// 10. getUser()
+// 10. getUserDB()
+function getUserDB() {
+    return JSON.parse(localStorage.getItem("lapak3d_user_db")) || {};
+}
+
+// 11. getUserFromDB(username)
+function getUserFromDB(username) {
+    if (!username) return null;
+    const db = getUserDB();
+    return db[username] || null;
+}
+
+// 12. saveUserToDB(user)
+function saveUserToDB(user) {
+    if (!user || !user.username) return;
+    const db = getUserDB();
+    db[user.username] = { ...db[user.username], ...user };
+    localStorage.setItem("lapak3d_user_db", JSON.stringify(db));
+}
+
+// 13. getUser()
 function getUser() {
     return JSON.parse(localStorage.getItem("lapak3d_user")) || null;
 }
 
-// 11. saveUser(user)
+// 14. saveUser(user)
 function saveUser(user) {
-    localStorage.setItem("lapak3d_user", JSON.stringify(user));
+    if (!user) return;
+    const existing = getUserFromDB(user.username) || {};
+    const merged = { ...existing, ...user, isLoggedIn: true };
+    localStorage.setItem("lapak3d_user", JSON.stringify(merged));
+    saveUserToDB(merged);
 }
 
-// 12. checkLoginStatus()
+// 15. checkLoginStatus()
 function checkLoginStatus() {
     let user = getUser();
     return user !== null && user.isLoggedIn === true;
@@ -260,7 +492,7 @@ function formatRupiah(number) {
 function getTimeRemaining(endTimeStr) {
     const total = Date.parse(endTimeStr) - Date.parse(new Date());
     
-    if (total <= 0) {
+    if (!endTimeStr || isNaN(total) || total <= 0) {
         return {
             days: 0, hours: 0, minutes: 0, seconds: 0, expired: true
         };
@@ -286,8 +518,13 @@ function saveBids(bids) {
     localStorage.setItem("lapak3d_bids", JSON.stringify(bids));
 }
 
+window.saveUploadedAsset = saveUploadedAsset;
+window.deleteLocalUploadedProduct = deleteLocalUploadedProduct;
+
 // Document Ready
 $(document).ready(function() {
-    initLapakSession(); // Mulai session tracking
-    updateNavbar();
+    checkServerReset().finally(function() {
+        initLapakSession(); // Mulai session tracking
+        updateNavbar();
+    });
 });

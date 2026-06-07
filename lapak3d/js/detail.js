@@ -237,6 +237,17 @@ function displayProductInfo(product) {
         badgeClass = 'badge-auction'; badgeText = 'LELANG';
         $('#action-auction').show();
 
+        const user = window.getUser();
+        if (user && user.username === product.creator) {
+            $('#auction-form-container').hide();
+            if ($('#creator-bid-warning').length === 0) {
+                $('#action-auction').append('<div id="creator-bid-warning" class="mt-3 text-center text-warning fs-7"><i class="fa-solid fa-circle-exclamation me-1"></i> Anda tidak dapat melakukan bid pada aset buatan Anda sendiri.</div>');
+            }
+        } else {
+            $('#auction-form-container').show();
+            $('#creator-bid-warning').remove();
+        }
+
         // Selalu baca dari localStorage agar data terkini (tidak hilang saat navigasi)
         const bidsData = window.getBids();
         const currentBidData = bidsData[product.id] || { currentBid: product.currentBid, history: [] };
@@ -338,6 +349,12 @@ function submitBid(product, currentBidData) {
         return;
     }
 
+    const user = window.getUser();
+    if (user && user.username === product.creator) {
+        window.showToast('Anda tidak dapat melakukan bid pada aset buatan Anda sendiri.', true);
+        return;
+    }
+
     // Selalu baca data bid TERBARU dari localStorage sebelum memproses
     const latestBids = window.getBids();
     const latestBidData = latestBids[product.id] || currentBidData;
@@ -350,7 +367,6 @@ function submitBid(product, currentBidData) {
         return;
     }
 
-    const user = window.getUser();
     latestBidData.currentBid = amount;
     latestBidData.history.push({ user: user.username, amount, time: new Date().toISOString() });
 

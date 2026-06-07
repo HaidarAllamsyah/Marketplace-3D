@@ -187,7 +187,7 @@
                 password: '123',
                 email: 'haidar@lapak3d.com',
                 displayName: 'Haidar',
-                isCreator: true
+                isCreator: false
             },
             {
                 username: 'diko',
@@ -254,11 +254,12 @@
                 $error.hide();
                 $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengautentikasi...');
 
+                const dbUser = window.getUserFromDB(matchedUser.username);
                 const user = {
                     username: matchedUser.username,
-                    displayName: matchedUser.displayName,
-                    email: matchedUser.email,
-                    isCreator: matchedUser.isCreator,
+                    displayName: dbUser?.displayName || matchedUser.displayName,
+                    email: dbUser?.email || matchedUser.email,
+                    isCreator: dbUser?.isCreator ?? matchedUser.isCreator ?? false,
                     isLoggedIn: true
                 };
 

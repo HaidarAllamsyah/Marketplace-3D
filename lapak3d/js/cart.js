@@ -109,32 +109,40 @@ $(document).ready(function() {
         const cart = window.getCart();
         if (cart.length === 0) return;
         
-        // Disable tombol biar gak double click
-        const $btn = $(this);
-        $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin me-2"></i> Memproses...');
-        
+        const totalAmount = window.getCartTotal();
+
         // Buat order object
         const order = {
             id: 'ORD-' + Date.now(),
             date: new Date().toISOString(),
             items: cart,
-            total: window.getCartTotal()
+            total: totalAmount
         };
-        
-        // Simpan ke local storage khusus orders
-        let orders = JSON.parse(localStorage.getItem('lapak3d_orders')) || [];
-        orders.push(order);
-        localStorage.setItem('lapak3d_orders', JSON.stringify(orders));
-        
-        // Bersihkan keranjang
-        window.saveCart([]);
-        window.updateCartBadge();
-        
-        window.showToast("Pembelian berhasil! Terima kasih 🎉");
-        
-        // Redirect setelah pesan dibaca
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 2000);
+
+        if (totalAmount > 0) {
+            // Save as pending and go to payment
+            sessionStorage.setItem('lapak3d_pending_order', JSON.stringify(order));
+            window.location.href = 'payment.html';
+        } else {
+            // Disable tombol biar gak double click
+            const $btn = $(this);
+            $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin me-2"></i> Memproses...');
+            
+            // Simpan ke local storage khusus orders
+            let orders = JSON.parse(localStorage.getItem('lapak3d_orders')) || [];
+            orders.push(order);
+            localStorage.setItem('lapak3d_orders', JSON.stringify(orders));
+            
+            // Bersihkan keranjang
+            window.saveCart([]);
+            window.updateCartBadge();
+            
+            window.showToast("Klaim item gratis berhasil! 🎉");
+            
+            // Redirect setelah pesan dibaca
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2000);
+        }
     });
 });

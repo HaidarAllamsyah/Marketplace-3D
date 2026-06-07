@@ -164,46 +164,13 @@
                             
                             <div class="row mb-3">
                                 <div class="col-md-6 mb-3 mb-md-0">
-                                    <label class="form-label text-muted fw-semibold">Simulasi Pilih File 3D Model <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="ua-model" required>
-                                        <option value="" disabled selected>Pilih Model.gltf/.glb</option>
-                                        <option value="fantasy_sword/scene.glb">fantasy_sword</option>
-                                        <option value="sport_car/scene.glb">sport_car</option>
-                                        <option value="mech_robot/scene.glb">mech_robot</option>
-                                        <option value="dragon_statue/scene.glb">dragon_statue</option>
-                                        <option value="knight_character/scene.glb">knight_character</option>
-                                        <option value="low_poly_tree/scene.glb">low_poly_tree</option>
-                                        <option value="simple_rock/scene.glb">simple_rock</option>
-                                        <option value="basic_cube_character/scene.glb">basic_cube_character</option>
-                                        <option value="sci_fi_rifle/scene.glb">sci_fi_rifle</option>
-                                        <option value="modern_bookshelf/scene.glb">modern_bookshelf</option>
-                                        <option value="magic_staff/scene.glb">magic_staff</option>
-                                        <option value="helicopter_drone/scene.glb">helicopter_drone</option>
-                                        <option value="upload">Pilih File Sendiri (Upload)</option>
-                                    </select>
-                                    <input type="file" id="ua-model-file" class="form-control border-secondary text-white mt-2" style="background-color: rgba(0,0,0,0.1); display: none;" accept=".gltf,.glb">
+                                    <label class="form-label text-muted fw-semibold">Pilih File 3D Model <span class="text-danger">*</span></label>
+                                    <input type="file" id="ua-model-file" class="form-control border-secondary text-white" style="background-color: rgba(0,0,0,0.1);" accept=".gltf,.glb" required>
                                     <div class="invalid-feedback text-danger">File model wajib dipilih.</div>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label text-muted fw-semibold">Simulasi Pilih Thumbnail <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="ua-thumbnail" required>
-                                        <option value="" disabled selected>Pilih Gambar Preview</option>
-                                        <option value="assets/thumbnails/fantasy_sword.jpg">fantasy_sword.jpg</option>
-                                        <option value="assets/thumbnails/sport_car.jpg">sport_car.jpg</option>
-                                        <option value="assets/thumbnails/mech_robot.jpg">mech_robot.jpg</option>
-                                        <option value="assets/thumbnails/dragon_statue.jpg">dragon_statue.jpg</option>
-                                        <option value="assets/thumbnails/knight_character.jpg">knight_character.jpg</option>
-                                        <option value="assets/thumbnails/low_poly_tree.jpg">low_poly_tree.jpg</option>
-                                        <option value="assets/thumbnails/simple_rock.jpg">simple_rock.jpg</option>
-                                        <option value="assets/thumbnails/basic_cube_character.jpg">basic_cube_character.jpg</option>
-                                        <option value="assets/thumbnails/sci_fi_rifle.jpg">sci_fi_rifle.jpg</option>
-                                        <option value="assets/thumbnails/modern_bookshelf.jpg">modern_bookshelf.jpg</option>
-                                        <option value="assets/thumbnails/magic_staff.jpg">magic_staff.jpg</option>
-                                        <option value="assets/thumbnails/helicopter_drone.jpg">helicopter_drone.jpg</option>
-                                        <option value="assets/thumbnails/placeholder.jpg">placeholder.jpg</option>
-                                        <option value="upload">Pilih File Sendiri (Upload)</option>
-                                    </select>
-                                    <input type="file" id="ua-thumbnail-file" class="form-control border-secondary text-white mt-2" style="background-color: rgba(0,0,0,0.1); display: none;" accept="image/*">
+                                    <label class="form-label text-muted fw-semibold">Pilih Thumbnail <span class="text-danger">*</span></label>
+                                    <input type="file" id="ua-thumbnail-file" class="form-control border-secondary text-white" style="background-color: rgba(0,0,0,0.1);" accept="image/*" required>
                                     <div class="invalid-feedback text-danger">Thumbnail wajib dipilih.</div>
                                 </div>
                             </div>
@@ -293,7 +260,7 @@
                     <!-- Preview Card Structure (mirrors index.html product card) -->
                     <div class="product-card shadow-lg mx-auto" style="max-width: 380px;">
                         <div class="position-relative">
-                            <img id="preview-img" src="assets/thumbnails/placeholder.jpg" class="product-img" alt="Preview Image" style="object-fit: cover;">
+                            <img id="preview-img" src="assets/thumbnails/placeholder.jpg" class="product-img" alt="Preview Image" style="height: 250px; width: 100%; object-fit: cover;">
                             <span id="preview-badge" class="badge badge-free position-absolute top-0 start-0 m-3">FREE</span>
                         </div>
                         <div class="p-3">
@@ -404,18 +371,17 @@
             let uploadedThumbnail = null;
             let uploadedModel = null;
 
-            $('#ua-model').on('change', function() {
-                if ($(this).val() === 'upload') {
-                    $('#ua-model-file').slideDown().prop('required', true);
-                } else {
-                    $('#ua-model-file').slideUp().prop('required', false);
-                    uploadedModel = null;
-                }
-            });
+
 
             $('#ua-model-file').on('change', function(e) {
                 const file = e.target.files[0];
                 if (file) {
+                    const ext = file.name.split('.').pop().toUpperCase();
+                    $('#ua-formats input[type="checkbox"]').prop('checked', false);
+                    $('#ua-formats input[type="checkbox"]').filter(function() {
+                        return $(this).val() === ext;
+                    }).prop('checked', true);
+
                     const reader = new FileReader();
                     reader.onload = function(evt) {
                         uploadedModel = evt.target.result;
@@ -424,20 +390,7 @@
                 }
             });
 
-            $('#ua-thumbnail').on('change', function() {
-                const val = $(this).val();
-                if (val === 'upload') {
-                    $('#ua-thumbnail-file').slideDown().prop('required', true);
-                    // Gunakan placeholder sementara sampai file dipilih
-                    $('#preview-img').attr('src', 'assets/thumbnails/placeholder.jpg');
-                } else {
-                    $('#ua-thumbnail-file').slideUp().prop('required', false);
-                    if (val) {
-                        $('#preview-img').attr('src', val);
-                    }
-                    uploadedThumbnail = null;
-                }
-            });
+
 
             $('#ua-thumbnail-file').on('change', function(e) {
                 const file = e.target.files[0];
@@ -482,69 +435,76 @@
                     return;
                 }
 
-                // Construct New Product
-                const newId = Date.now();
+                // Simpan upload di browser agar tetap bisa jalan dari Live Server tanpa backend.
                 const type = $('input[name="ua-type"]:checked').val();
-                
                 let price = 0;
                 let auctionEndTime = null;
                 
                 if (type === 'paid') {
-                    price = parseInt($('#ua-price').val());
+                    price = parseInt($('#ua-price').val()) || 0;
                 } else if (type === 'auction') {
-                    price = parseInt($('#ua-auction-price').val());
-                    // Add ':00Z' to ensure correct parsing format if needed, but local ISO is fine
+                    price = parseInt($('#ua-auction-price').val()) || 0;
                     auctionEndTime = new Date($('#ua-auction-time').val()).toISOString();
                 }
 
-                // Parse tags
                 const tagsStr = $('#ua-tags').val();
                 const tagsArr = tagsStr.split(',').map(t => t.trim()).filter(t => t !== "");
 
-                const newProduct = {
-                    id: newId,
+                const modelFile = $('#ua-model-file')[0].files[0];
+                if (!modelFile) {
+                    window.showToast("Silakan pilih file 3D model (.glb/.gltf) Anda.", true);
+                    return;
+                }
+
+                const thumbFile = $('#ua-thumbnail-file')[0].files[0];
+                if (!thumbFile) {
+                    window.showToast("Silakan pilih gambar preview/thumbnail Anda.", true);
+                    return;
+                }
+
+                $('#btn-submit-upload').prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah...');
+
+                const productData = {
                     name: $('#ua-title').val(),
                     creator: user.username,
                     type: type,
-                    price: price,
+                    price: type === 'free' ? 0 : price,
+                    currentBid: type === 'auction' ? price : 0,
+                    startingBid: type === 'auction' ? price : 0,
                     category: $('#ua-category').val(),
                     tags: tagsArr,
-                    rating: 0.0,
-                    reviews: 0,
                     polycount: $('#ua-polycount').val(),
+                    format: formats,
                     formats: formats,
                     description: $('#ua-desc').val(),
-                    thumbnail: ($('#ua-thumbnail').val() === 'upload') ? uploadedThumbnail : $('#ua-thumbnail').val(),
-                    modelUrl: ($('#ua-model').val() === 'upload') ? uploadedModel : ("assets/models/" + $('#ua-model').val())
+                    rating: 0.0,
+                    reviews: 0,
+                    downloads: 0,
+                    auctionEndTime: auctionEndTime
                 };
 
-                if (type === 'auction') {
-                    newProduct.auctionEndTime = auctionEndTime;
-                    
-                    // Initialize bids history in lapak3d_bids
-                    let bidsObj = window.getBids();
-                    bidsObj[newId] = {
-                        currentBid: price,
-                        history: [] // No bids yet
-                    };
-                    localStorage.setItem('lapak3d_bids', JSON.stringify(bidsObj));
-                }
+                window.saveUploadedAsset(productData, modelFile, thumbFile)
+                    .then(function(savedProduct) {
+                        if (type === 'auction') {
+                            let bidsObj = window.getBids();
+                            bidsObj[savedProduct.id] = {
+                                currentBid: price,
+                                history: []
+                            };
+                            window.saveBids(bidsObj);
+                        }
 
-                // Fetch current products and inject
-                window.loadProductsFromJSON(function(products) {
-                    // Cek di localStorage
-                    let localProds = JSON.parse(localStorage.getItem('lapak3d_products')) || [];
-                    localProds.push(newProduct);
-                    localStorage.setItem('lapak3d_products', JSON.stringify(localProds));
+                        window.showToast("Aset berhasil dipublikasikan dan tersimpan di browser Live Server!");
 
-                    $('#btn-submit-upload').prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengunggah...');
-                    
-                    window.showToast("Aset berhasil dipublikasikan ke marketplace Lapak 3D! 🚀");
-                    
-                    setTimeout(() => {
-                        window.location.href = "index.html";
-                    }, 2000);
-                });
+                        setTimeout(() => {
+                            window.location.href = "index.html";
+                        }, 1200);
+                    })
+                    .catch(function(error) {
+                        console.error('Gagal menyimpan upload lokal:', error);
+                        window.showToast("Gagal menyimpan aset di browser. Coba pakai file yang lebih kecil atau bersihkan storage browser.", true);
+                        $('#btn-submit-upload').prop('disabled', false).html('<i class="fa-solid fa-paper-plane me-2"></i> Publikasikan Aset');
+                    });
             });
         });
     </script>
